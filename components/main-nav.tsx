@@ -10,6 +10,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Problems", href: "/problems" },
   { label: "Contests", href: "/contests" },
+  { label: "My Contests", href: "/contests/my-contests" },
   { label: "Leaderboard", href: "/leaderboard" },
 ]
 

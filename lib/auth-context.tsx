@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 interface User {
   id: string
@@ -14,7 +16,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   token: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
   logout: () => void
   isAuthenticated: boolean
@@ -44,27 +46,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     setLoading(true)
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
+      const data = await api.login(username, password)
 
-      if (!response.ok) {
-        throw new Error("Login failed")
+      // backend may return { access, refresh } (simplejwt) or { token } or { token, user }
+      const token = data?.access || data?.token || data?.access_token
+      const user = data?.user || data?.user_info || data
+
+      if (!token) {
+        throw new Error("Authentication failed: no token returned")
       }
 
-      const data = await response.json()
-      setToken(data.token)
-      setUser(data.user)
+      setToken(token)
+
+      // persist token quickly so api.getMe() can use it
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", token)
+      }
+
+      // if user is not provided by login response, try to fetch it
+      let finalUser = user
+      if (!finalUser || !finalUser.username) {
+        try {
+          finalUser = await api.getMe()
+        } catch {
+          // ok if fetch fails
+        }
+      }
+
+      setUser(finalUser)
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", data.token)
-        localStorage.setItem("auth_user", JSON.stringify(data.user))
+        localStorage.setItem("auth_user", JSON.stringify(finalUser))
       }
+
+      toast.success("Signed in")
+    } catch (err: any) {
+      toast.error(err?.message || "Login failed")
+      throw err
     } finally {
       setLoading(false)
     }
@@ -73,24 +94,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, username: string, password: string) => {
     setLoading(true)
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, password }),
-      })
+      const data = await api.register(email, username, password)
 
-      if (!response.ok) {
-        throw new Error("Registration failed")
+      const token = data?.access || data?.token || data?.access_token
+      const user = data?.user || data
+
+      if (!token) {
+        throw new Error("Registration failed: no token returned")
       }
 
-      const data = await response.json()
-      setToken(data.token)
-      setUser(data.user)
+      setToken(token)
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", data.token)
-        localStorage.setItem("auth_user", JSON.stringify(data.user))
+        localStorage.setItem("auth_token", token)
       }
+
+      let finalUser = user
+      if (!finalUser || !finalUser.username) {
+        try {
+          finalUser = await api.getMe()
+        } catch {
+          // ignore
+        }
+      }
+
+      setUser(finalUser)
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_user", JSON.stringify(finalUser))
+      }
+
+      toast.success("Account created")
+    } catch (err: any) {
+      toast.error(err?.message || "Registration failed")
+      throw err
     } finally {
       setLoading(false)
     }

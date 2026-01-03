@@ -34,88 +34,37 @@ export default function ManagerLeaderboardPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState<"rank" | "problems" | "time">("rank")
 
-  const mockLeaderboardData: LeaderboardEntry[] = [
-    {
-      rank: 0,
-      username: "coder_elite",
-      userId: "user_001",
-      problemsSolved: 5,
-      totalSubmissions: 8,
-      timeTakenMinutes: 145,
-      lastSubmissionTime: "2026-01-02 14:32",
-      problemStatuses: [
-        { problemId: "p1", status: "AC", attempts: 1 },
-        { problemId: "p2", status: "AC", attempts: 2 },
-        { problemId: "p3", status: "AC", attempts: 1 },
-        { problemId: "p4", status: "AC", attempts: 3 },
-        { problemId: "p5", status: "AC", attempts: 1 },
-      ],
-    },
-    {
-      rank: 0,
-      username: "algorithm_master",
-      userId: "user_002",
-      problemsSolved: 5,
-      totalSubmissions: 12,
-      timeTakenMinutes: 185,
-      lastSubmissionTime: "2026-01-02 15:10",
-      problemStatuses: [
-        { problemId: "p1", status: "AC", attempts: 1 },
-        { problemId: "p2", status: "AC", attempts: 3 },
-        { problemId: "p3", status: "AC", attempts: 2 },
-        { problemId: "p4", status: "AC", attempts: 4 },
-        { problemId: "p5", status: "AC", attempts: 2 },
-      ],
-    },
-    {
-      rank: 0,
-      username: "swift_solver",
-      userId: "user_003",
-      problemsSolved: 4,
-      totalSubmissions: 9,
-      timeTakenMinutes: 120,
-      lastSubmissionTime: "2026-01-02 13:45",
-      problemStatuses: [
-        { problemId: "p1", status: "AC", attempts: 1 },
-        { problemId: "p2", status: "AC", attempts: 2 },
-        { problemId: "p3", status: "AC", attempts: 1 },
-        { problemId: "p4", status: "WA", attempts: 5 },
-        { problemId: "p5", status: "-", attempts: 0 },
-      ],
-    },
-    {
-      rank: 0,
-      username: "logic_wizard",
-      userId: "user_004",
-      problemsSolved: 4,
-      totalSubmissions: 11,
-      timeTakenMinutes: 165,
-      lastSubmissionTime: "2026-01-02 14:20",
-      problemStatuses: [
-        { problemId: "p1", status: "AC", attempts: 1 },
-        { problemId: "p2", status: "AC", attempts: 2 },
-        { problemId: "p3", status: "WA", attempts: 3 },
-        { problemId: "p4", status: "AC", attempts: 4 },
-        { problemId: "p5", status: "AC", attempts: 1 },
-      ],
-    },
-    {
-      rank: 0,
-      username: "debug_ninja",
-      userId: "user_005",
-      problemsSolved: 3,
-      totalSubmissions: 15,
-      timeTakenMinutes: 210,
-      lastSubmissionTime: "2026-01-02 16:05",
-      problemStatuses: [
-        { problemId: "p1", status: "AC", attempts: 2 },
-        { problemId: "p2", status: "AC", attempts: 4 },
-        { problemId: "p3", status: "WA", attempts: 5 },
-        { problemId: "p4", status: "TLE", attempts: 2 },
-        { problemId: "p5", status: "-", attempts: 0 },
-      ],
-    },
-  ]
+  const params = useParams()
+  const contestSlug = params.id as string
+  const { leaderboard, loading: lbLoading } = useLeaderboard(contestSlug)
+
+  const mockLeaderboardData: LeaderboardEntry[] = (leaderboard || []).map((entry: any, i: number) => ({
+    rank: i + 1,
+    username: entry.user || entry.username,
+    userId: entry.user || `user_${i}`,
+    problemsSolved: entry.total_score || entry.solved || 0,
+    totalSubmissions: entry.total_submissions || 0,
+    timeTakenMinutes: entry.penalty_time || entry.time_taken_minutes || 0,
+    lastSubmissionTime: entry.last_submission || "-",
+    problemStatuses: entry.problems || [],
+  }))
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case "AC":
+        return "text-green-500 bg-green-500/10"
+      case "WA":
+        return "text-yellow-500 bg-yellow-500/10"
+      case "TLE":
+        return "text-orange-500 bg-orange-500/10"
+      case "CE":
+        return "text-red-500 bg-red-500/10"
+      case "-":
+        return "text-gray-500 bg-gray-500/10"
+      default:
+        return ""
+    }
+  }
 
   const statusColor = (status: string) => {
     switch (status) {

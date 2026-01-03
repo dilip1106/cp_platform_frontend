@@ -6,6 +6,9 @@ import { MainNav } from "@/components/main-nav"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
+import { useContests } from "@/lib/hooks/useContests"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 interface Contest {
   id: string
@@ -22,52 +25,59 @@ interface Contest {
 export default function ContestsPage() {
   const router = useRouter()
   const { isAuthenticated, loading } = useAuth()
-  const [contests, setContests] = useState<Contest[]>([
-    {
-      id: "1",
-      title: "Code Challenge #42",
-      description: "Master the fundamentals of data structures and algorithms",
-      status: "live",
-      startTime: "2026-01-01 10:00",
-      duration: 120,
-      participants: 234,
-      problems: 5,
-      registered: true,
-    },
-    {
-      id: "2",
-      title: "Weekend Sprint",
-      description: "Fast-paced competition with medium difficulty problems",
-      status: "upcoming",
-      startTime: "2026-01-05 14:00",
-      duration: 180,
-      participants: 156,
-      problems: 6,
-      registered: false,
-    },
-    {
-      id: "3",
-      title: "Algorithm Mastery",
-      description: "Advanced algorithms and optimization techniques",
-      status: "upcoming",
-      startTime: "2026-01-08 09:00",
-      duration: 240,
-      participants: 89,
-      problems: 7,
-      registered: false,
-    },
-    {
-      id: "4",
-      title: "Code Clash Monthly",
-      description: "January's biggest programming competition",
-      status: "ended",
-      startTime: "2025-12-25 10:00",
-      duration: 120,
-      participants: 512,
-      problems: 5,
-      registered: true,
-    },
-  ])
+  const { contests, loading: loadingContests, error } = useContests()
+  const [refreshing, setRefreshing] = useState(false)
+  const [inviteCode, setInviteCode] = useState("")
+  const [joinLoading, setJoinLoading] = useState(false)
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error?.message || "Failed to load contests")
+    }
+  }, [error])
+
+  async function handleRegister(contestId: number) {
+    setRefreshing(true)
+    try {
+      await api.registerContest(contestId)
+      toast.success("Registered for contest")
+      router.refresh()
+    } catch (err: any) {
+      console.debug(err)
+      toast.error(err?.message || "Failed to register for contest")
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  async function handleUnregister(contestId: number) {
+    setRefreshing(true)
+    try {
+      await api.unregisterContest(contestId)
+      toast.success("Left contest")
+      router.refresh()
+    } catch (err: any) {
+      console.debug(err)
+      toast.error(err?.message || "Failed to leave contest")
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  async function handleJoinByCode() {
+    if (!inviteCode) return
+    setJoinLoading(true)
+    try {
+      await api.joinByCode(inviteCode)
+      setInviteCode("")
+      router.refresh()
+    } catch (err: any) {
+      console.debug(err)
+      toast.error(err?.message || "Failed to join with invitation code")
+    } finally {
+      setJoinLoading(false)
+    }
+  }
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -112,24 +122,43 @@ export default function ContestsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border">
-          {["All", "Upcoming", "Live", "Past"].map((tab) => (
-            <button
-              key={tab}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                tab === "All"
-                  ? "text-primary border-primary"
-                  : "text-muted-foreground border-transparent hover:text-foreground"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex gap-2 border-b border-border">
+            {["All", "Upcoming", "Live", "Past"].map((tab) => (
+              <button
+                key={tab}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  tab === "All"
+                    ? "text-primary border-primary"
+                    : "text-muted-foreground border-transparent hover:text-foreground"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Join with invite code"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              className="px-3 py-2 bg-card border border-border rounded-md text-foreground placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <Button onClick={handleJoinByCode} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={joinLoading}>
+              {joinLoading ? "Joining..." : "Join"}
+            </Button>
+          </div>
         </div>
 
         {/* Contests Grid */}
         <div className="space-y-4">
-          {contests.map((contest) => (
+          {loadingContests ? (
+            <div className="text-center py-8">Loading contests...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">Failed to load contests</div>
+          ) : (contests || []).map((contest: any) => (
             <div
               key={contest.id}
               className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-colors"
@@ -153,27 +182,27 @@ export default function ContestsPage() {
                   <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Start:</span>
-                      <span>{contest.startTime}</span>
+                      <span>{contest.start_time || contest.startTime}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Duration:</span>
-                      <span>{contest.duration} minutes</span>
+                      <span>{contest.duration || contest.duration_minutes || 0} minutes</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Problems:</span>
-                      <span>{contest.problems}</span>
+                      <span>{contest.problems_count || contest.problems || (contest.contest_problems?.length ?? 0)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Participants:</span>
-                      <span>{contest.participants.toLocaleString()}</span>
+                      <span>{(contest.participants || contest.registered_count || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 w-full lg:w-auto">
-                  <Link href={`/contests/${contest.id}`} className="w-full">
+                  <Link href={`/contests/${contest.slug || contest.id}`} className="w-full">
                     <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                      {contest.registered
+                      {contest.is_user_registered || contest.registered
                         ? contest.status === "live"
                           ? "View"
                           : "View Details"
@@ -182,12 +211,23 @@ export default function ContestsPage() {
                           : "Register"}
                     </Button>
                   </Link>
-                  {contest.registered && (
+                  {(contest.is_user_registered || contest.registered) && (
                     <Button
+                      onClick={() => handleUnregister(contest.id)}
                       variant="outline"
                       className="w-full border-border text-muted-foreground hover:text-foreground bg-transparent"
+                      disabled={refreshing}
                     >
-                      Leave
+                      {refreshing ? "Leaving..." : "Leave"}
+                    </Button>
+                  )}
+                  {!(contest.is_user_registered || contest.registered) && (
+                    <Button
+                      onClick={() => handleRegister(contest.id)}
+                      className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+                      disabled={refreshing}
+                    >
+                      {refreshing ? "Working..." : contest.status === "live" ? "Join" : "Register"}
                     </Button>
                   )}
                 </div>

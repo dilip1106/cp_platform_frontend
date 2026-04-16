@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,10 +23,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(email, password);
       router.push("/dashboard");
     } catch (err) {
-      setError("Invalid username or password");
+      setError("Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -54,8 +54,8 @@ export default function LoginPage() {
             {error && <div className="bg-destructive/10 border border-destructive/30 rounded p-3 text-sm text-destructive">{error}</div>}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Username</label>
-              <Input type="text" placeholder="your_username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} className="bg-input border-border text-foreground" />
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <Input type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="bg-input border-border text-foreground" />
             </div>
 
             <div className="space-y-2">

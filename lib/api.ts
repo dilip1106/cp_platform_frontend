@@ -28,25 +28,25 @@ async function apiFetch(path: string, opts: RequestInit = {}) {
 }
 
 /* Auth endpoints */
-export async function login(username: string, password: string) {
-  return apiFetch("/accounts/login/", {
+export async function login(email: string, password: string) {
+  return apiFetch("/auth/login/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   })
 }
 
 export async function register(email: string, username: string, password: string) {
-  return apiFetch("/accounts/register/", {
+  return apiFetch("/auth/register/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, username, password }),
+    body: JSON.stringify({ email, username, password, password_confirm: password }),
   })
 }
 
 /* User */
 export async function getMe() {
-  return apiFetch("/accounts/me/")
+  return apiFetch("/auth/profile/")
 }
 
 /* Contest endpoints */

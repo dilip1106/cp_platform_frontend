@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   token: string | null
-  login: (username: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
   logout: () => void
   isAuthenticated: boolean
@@ -46,10 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     setLoading(true)
     try {
-      const data = await api.login(username, password)
+      const data = await api.login(email, password)
 
       // backend may return { access, refresh } (simplejwt) or { token } or { token, user }
       const token = data?.access || data?.token || data?.access_token
@@ -94,36 +94,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, username: string, password: string) => {
     setLoading(true)
     try {
-      const data = await api.register(email, username, password)
-
-      const token = data?.access || data?.token || data?.access_token
-      const user = data?.user || data
-
-      if (!token) {
-        throw new Error("Registration failed: no token returned")
-      }
-
-      setToken(token)
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", token)
-      }
-
-      let finalUser = user
-      if (!finalUser || !finalUser.username) {
-        try {
-          finalUser = await api.getMe()
-        } catch {
-          // ignore
+      await api.register(email, username, password)
+      
+      // Auto-login since backend doesn't return auth token on registration
+      await api.login(email, password).then(async (data) => {
+        const token = data?.access || data?.token || data?.access_token
+        const user = data?.user || data
+        
+        if (!token) throw new Error("Auto-login failed after registration")
+        
+        setToken(token)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth_token", token)
         }
-      }
-
-      setUser(finalUser)
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_user", JSON.stringify(finalUser))
-      }
-
+        
+        let finalUser = user
+        if (!finalUser || !finalUser.username) {
+          try {
+            finalUser = await api.getMe()
+          } catch {}
+        }
+        setUser(finalUser)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth_user", JSON.stringify(finalUser))
+        }
+      })
+      
       toast.success("Account created")
     } catch (err: any) {
       toast.error(err?.message || "Registration failed")

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
+import api from "@/lib/api"
 
 interface Problem {
   id: string
@@ -25,71 +26,32 @@ export default function ProblemsPage() {
   const [difficulty, setDifficulty] = useState<"all" | "easy" | "medium" | "hard">("all")
   const [category, setCategory] = useState<string>("all")
 
-  const allProblems: Problem[] = [
-    {
-      id: "1",
-      title: "Two Sum",
-      difficulty: "easy",
-      category: "Array",
-      acceptance: 47.3,
-      solved: true,
-      submissions: 5,
-    },
-    {
-      id: "2",
-      title: "Add Two Numbers",
-      difficulty: "medium",
-      category: "Linked List",
-      acceptance: 32.1,
-      solved: false,
-      submissions: 2,
-    },
-    {
-      id: "3",
-      title: "Longest Substring Without Repeating Characters",
-      difficulty: "medium",
-      category: "String",
-      acceptance: 33.8,
-      solved: false,
-      submissions: 1,
-    },
-    {
-      id: "4",
-      title: "Median of Two Sorted Arrays",
-      difficulty: "hard",
-      category: "Array",
-      acceptance: 28.5,
-      solved: false,
-      submissions: 0,
-    },
-    {
-      id: "5",
-      title: "Reverse Integer",
-      difficulty: "easy",
-      category: "Math",
-      acceptance: 26.9,
-      solved: true,
-      submissions: 3,
-    },
-    {
-      id: "6",
-      title: "String to Integer (atoi)",
-      difficulty: "medium",
-      category: "String",
-      acceptance: 14.5,
-      solved: false,
-      submissions: 0,
-    },
-  ]
+  const [allProblems, setAllProblems] = useState<any[]>([])
+  const [isLoadingProblems, setIsLoadingProblems] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/auth/login")
+    } else if (isAuthenticated) {
+      api.getProblems()
+        .then(res => {
+          setAllProblems(Array.isArray(res) ? res : res.results || [])
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingProblems(false))
+    }
+  }, [isAuthenticated, loading, router])
 
   const problems = allProblems.filter((p) => {
+    const diff = p.difficulty?.toLowerCase() || ""
+    const cat = p.tags && p.tags.length > 0 ? p.tags[0].name : "Uncategorized"
     const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase())
-    const matchesDifficulty = difficulty === "all" || p.difficulty === difficulty
-    const matchesCategory = category === "all" || p.category === category
+    const matchesDifficulty = difficulty === "all" || diff === difficulty
+    const matchesCategory = category === "all" || cat === category
     return matchesSearch && matchesDifficulty && matchesCategory
   })
 
-  const categories = Array.from(new Set(allProblems.map((p) => p.category)))
+  const categories = Array.from(new Set(allProblems.map((p) => p.tags && p.tags.length > 0 ? p.tags[0].name : "Uncategorized")))
 
   const difficultyColor = (diff: string) => {
     switch (diff) {
@@ -110,10 +72,10 @@ export default function ProblemsPage() {
     }
   }, [isAuthenticated, loading, router])
 
-  if (loading) {
+  if (loading || isLoadingProblems) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground animate-pulse">Loading problems...</div>
       </div>
     )
   }
@@ -194,34 +156,38 @@ export default function ProblemsPage() {
               </tr>
             </thead>
             <tbody>
-              {problems.map((problem) => (
-                <tr key={problem.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                  <td className="py-3 px-4 text-center">
-                    {problem.solved ? (
-                      <span className="text-green-500 text-lg">✓</span>
-                    ) : (
-                      <span className="text-muted-foreground">○</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-foreground font-medium">{problem.title}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${difficultyColor(problem.difficulty)}`}>
-                      {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground">{problem.category}</td>
-                  <td className="py-3 px-4 text-muted-foreground">{problem.acceptance.toFixed(1)}%</td>
-                  <td className="py-3 px-4">
-                    <Link href={`/problems/${problem.id}`}>
-                      <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                        Solve
-                      </Button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {problems.map((problem) => {
+                const diff = problem.difficulty?.toLowerCase() || "easy"
+                const cat = problem.tags && problem.tags.length > 0 ? problem.tags[0].name : "Uncategorized"
+                return (
+                  <tr key={problem.slug || problem.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td className="py-3 px-4 text-center">
+                      {problem.status === "SOLVED" ? (
+                        <span className="text-green-500 text-lg">✓</span>
+                      ) : (
+                        <span className="text-muted-foreground">○</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="text-foreground font-medium">{problem.title}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${difficultyColor(diff)}`}>
+                        {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">{cat}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{problem.acceptance_rate ? problem.acceptance_rate.toFixed(1) : "0.0"}%</td>
+                    <td className="py-3 px-4">
+                      <Link href={`/problems/${problem.slug}`}>
+                        <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                          Solve
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

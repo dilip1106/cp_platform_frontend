@@ -149,6 +149,30 @@ export async function getUserSubmissions(contestSlug: string, problemSlug: strin
   return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/submissions/`)
 }
 
+export async function getProblems(query = "") {
+  return apiFetch(`/problems/${query ? `?${query}` : ""}`)
+}
+
+export async function getProblemDetails(slug: string) {
+  return apiFetch(`/problems/${slug}/`)
+}
+
+export async function runCode(payload: { problem_slug: string; code: string; language: string }) {
+  return apiFetch(`/submissions/run/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function submitCode(payload: { problem_slug: string; code: string; language: string }) {
+  return apiFetch(`/submissions/submit/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function getSubmission(submissionId: number) {
   return apiFetch(`/submissions/${submissionId}/`)
 }
@@ -248,4 +272,8 @@ export default {
   addProblemToContest,
   removeProblemFromContest,
   getContestSubmissions,
+  getProblems,
+  getProblemDetails,
+  runCode,
+  submitCode,
 }

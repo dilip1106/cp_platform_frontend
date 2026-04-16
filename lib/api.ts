@@ -1,30 +1,30 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 async function getToken(): Promise<string | null> {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("auth_token")
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("auth_token");
 }
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
-  const token = await getToken()
+  const token = await getToken();
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(opts.headers as Record<string, string>),
-  }
+  };
 
-  if (token) headers["Authorization"] = `Bearer ${token}`
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers })
+  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    const err: any = new Error(body?.detail || res.statusText)
-    err.status = res.status
-    err.body = body
-    throw err
+    const body = await res.json().catch(() => null);
+    const err: any = new Error(body?.detail || res.statusText);
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
 
-  return res.json().catch(() => null)
+  return res.json().catch(() => null);
 }
 
 /* Auth endpoints */
@@ -33,7 +33,7 @@ export async function login(email: string, password: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
-  })
+  });
 }
 
 export async function register(email: string, username: string, password: string) {
@@ -41,33 +41,33 @@ export async function register(email: string, username: string, password: string
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, username, password, password_confirm: password }),
-  })
+  });
 }
 
 /* User */
 export async function getMe() {
-  return apiFetch("/auth/profile/")
+  return apiFetch("/auth/profile/");
 }
 
 /* Contest endpoints */
 export async function getContests(query = "") {
-  return apiFetch(`/contests/${query ? `?${query}` : ""}`)
+  return apiFetch(`/contests/${query ? `?${query}` : ""}`);
 }
 
 export async function getContest(slug: string) {
-  return apiFetch(`/contests/${slug}/`)
+  return apiFetch(`/contests/${slug}/`);
 }
 
 export async function getContestStatus(slug: string) {
-  return apiFetch(`/contests/${slug}/status/`)
+  return apiFetch(`/contests/${slug}/status/`);
 }
 
 export async function registerContest(contestId: number) {
-  return apiFetch(`/contests/${contestId}/register/`, { method: "POST" })
+  return apiFetch(`/contests/${contestId}/register/`, { method: "POST" });
 }
 
 export async function unregisterContest(contestId: number) {
-  return apiFetch(`/contests/${contestId}/register/`, { method: "DELETE" })
+  return apiFetch(`/contests/${contestId}/register/`, { method: "DELETE" });
 }
 
 export async function joinByCode(invitationCode: string) {
@@ -75,15 +75,15 @@ export async function joinByCode(invitationCode: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ invitation_code: invitationCode }),
-  })
+  });
 }
 
 export async function getUserContests() {
-  return apiFetch("/contests/my-contests/")
+  return apiFetch("/contests/my-contests/");
 }
 
 export async function getContestsManaged(filters = "") {
-  return apiFetch(`/contests/my-contests/${filters ? `?${filters}` : ""}`)
+  return apiFetch(`/contests/my-contests/${filters ? `?${filters}` : ""}`);
 }
 
 export async function createContest(payload: any) {
@@ -91,7 +91,7 @@ export async function createContest(payload: any) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function updateContest(id: number, payload: any) {
@@ -99,11 +99,11 @@ export async function updateContest(id: number, payload: any) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function deleteContest(id: number) {
-  return apiFetch(`/contests/${id}/`, { method: "DELETE" })
+  return apiFetch(`/contests/${id}/`, { method: "DELETE" });
 }
 
 export async function addProblemToContest(contestId: number, payload: any) {
@@ -111,50 +111,46 @@ export async function addProblemToContest(contestId: number, payload: any) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function removeProblemFromContest(contestId: number, problemId: number) {
   return apiFetch(`/contests/${contestId}/problems/${problemId}/`, {
     method: "DELETE",
-  })
+  });
 }
 
 export async function getContestSubmissions(contestId: number, filters = "") {
-  return apiFetch(`/contests/${contestId}/submissions/${filters ? `?${filters}` : ""}`)
+  return apiFetch(`/contests/${contestId}/submissions/${filters ? `?${filters}` : ""}`);
 }
 
 /* Problems & Submissions */
 export async function getContestProblems(contestSlug: string) {
-  return apiFetch(`/contests/${contestSlug}/problems/`)
+  return apiFetch(`/contests/${contestSlug}/problems/`);
 }
 
 export async function getContestProblem(contestSlug: string, problemSlug: string) {
-  return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/`)
+  return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/`);
 }
 
-export async function submitSolution(
-  contestSlug: string,
-  problemSlug: string,
-  payload: { language: string; source_code: string },
-) {
+export async function submitSolution(contestSlug: string, problemSlug: string, payload: { language: string; source_code: string }) {
   return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/submit/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function getUserSubmissions(contestSlug: string, problemSlug: string) {
-  return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/submissions/`)
+  return apiFetch(`/contests/${contestSlug}/problems/${problemSlug}/submissions/`);
 }
 
 export async function getProblems(query = "") {
-  return apiFetch(`/problems/${query ? `?${query}` : ""}`)
+  return apiFetch(`/problems/${query ? `?${query}` : ""}`);
 }
 
 export async function getProblemDetails(slug: string) {
-  return apiFetch(`/problems/${slug}/`)
+  return apiFetch(`/problems/${slug}/`);
 }
 
 export async function runCode(payload: { problem_slug: string; code: string; language: string }) {
@@ -162,7 +158,7 @@ export async function runCode(payload: { problem_slug: string; code: string; lan
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function submitCode(payload: { problem_slug: string; code: string; language: string }) {
@@ -170,29 +166,29 @@ export async function submitCode(payload: { problem_slug: string; code: string; 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function getSubmission(submissionId: number) {
-  return apiFetch(`/submissions/${submissionId}/`)
+  return apiFetch(`/submissions/${submissionId}/`);
 }
 
 /* Leaderboard & stats */
 export async function getLeaderboard(contestSlug: string) {
-  return apiFetch(`/contests/${contestSlug}/leaderboard/`)
+  return apiFetch(`/contests/${contestSlug}/leaderboard/`);
 }
 
 export async function getUserStats(contestSlug: string) {
-  return apiFetch(`/contests/${contestSlug}/my-stats/`)
+  return apiFetch(`/contests/${contestSlug}/my-stats/`);
 }
 
 /* Challenges endpoints */
 export async function getChallenges(filters = "") {
-  return apiFetch(`/challenges/${filters ? `?${filters}` : ""}`)
+  return apiFetch(`/challenges/${filters ? `?${filters}` : ""}`);
 }
 
 export async function getChallenge(id: number) {
-  return apiFetch(`/challenges/${id}/`)
+  return apiFetch(`/challenges/${id}/`);
 }
 
 export async function createChallenge(payload: any) {
@@ -200,7 +196,7 @@ export async function createChallenge(payload: any) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function updateChallenge(id: number, payload: any) {
@@ -208,16 +204,16 @@ export async function updateChallenge(id: number, payload: any) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function deleteChallenge(id: number) {
-  return apiFetch(`/challenges/${id}/`, { method: "DELETE" })
+  return apiFetch(`/challenges/${id}/`, { method: "DELETE" });
 }
 
 /* Testcases endpoints */
 export async function getTestcases(challengeId: number) {
-  return apiFetch(`/challenges/${challengeId}/test-cases/`)
+  return apiFetch(`/challenges/${challengeId}/test-cases/`);
 }
 
 export async function createTestcase(challengeId: number, payload: any) {
@@ -225,7 +221,7 @@ export async function createTestcase(challengeId: number, payload: any) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function updateTestcase(testcaseId: number, payload: any) {
@@ -233,11 +229,11 @@ export async function updateTestcase(testcaseId: number, payload: any) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export async function deleteTestcase(testcaseId: number) {
-  return apiFetch(`/test-cases/${testcaseId}/`, { method: "DELETE" })
+  return apiFetch(`/test-cases/${testcaseId}/`, { method: "DELETE" });
 }
 
 export default {
@@ -276,4 +272,4 @@ export default {
   getProblemDetails,
   runCode,
   submitCode,
-}
+};

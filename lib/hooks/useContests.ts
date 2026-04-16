@@ -13,7 +13,7 @@ export function useContests(query = "") {
       .getContests(query)
       .then((data) => {
         if (!mounted) return
-        setContests(data)
+        setContests(Array.isArray(data) ? data : data.results || [])
       })
       .catch((err) => {
         if (!mounted) return

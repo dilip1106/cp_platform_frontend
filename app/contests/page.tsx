@@ -9,23 +9,25 @@ import Link from "next/link"
 import { useContests } from "@/lib/hooks/useContests"
 import api from "@/lib/api"
 import { toast } from "sonner"
-
-interface Contest {
-  id: string
-  title: string
-  description: string
-  status: "upcoming" | "live" | "ended"
-  startTime: string
-  duration: number
-  participants: number
-  problems: number
-  registered: boolean
-}
+import { motion } from "framer-motion"
+import { Calendar, Clock, Users, ArrowRight, Loader2, Info } from "lucide-react"
+import { format, parseISO } from "date-fns"
 
 export default function ContestsPage() {
   const router = useRouter()
   const { isAuthenticated, loading } = useAuth()
-  const { contests, loading: loadingContests, error } = useContests()
+  
+  const [activeTab, setActiveTab] = useState("All")
+  // Derive query string based on the active tab
+  const getQuery = () => {
+    if (activeTab === "Upcoming") return "status=UPCOMING"
+    if (activeTab === "Live") return "status=ACTIVE"
+    if (activeTab === "Past") return "status=ENDED"
+    return ""
+  }
+
+  const { contests, loading: loadingContests, error } = useContests(getQuery())
+  
   const [refreshing, setRefreshing] = useState(false)
   const [inviteCode, setInviteCode] = useState("")
   const [joinLoading, setJoinLoading] = useState(false)
@@ -36,12 +38,13 @@ export default function ContestsPage() {
     }
   }, [error])
 
-  async function handleRegister(contestId: number) {
+  async function handleRegister(contestSlug: string) {
     setRefreshing(true)
     try {
-      await api.registerContest(contestId)
+      await api.registerContest(contestSlug)
       toast.success("Registered for contest")
       router.refresh()
+      window.location.reload()
     } catch (err: any) {
       console.debug(err)
       toast.error(err?.message || "Failed to register for contest")
@@ -50,12 +53,13 @@ export default function ContestsPage() {
     }
   }
 
-  async function handleUnregister(contestId: number) {
+  async function handleUnregister(contestSlug: string) {
     setRefreshing(true)
     try {
-      await api.unregisterContest(contestId)
+      await api.unregisterContest(contestSlug)
       toast.success("Left contest")
       router.refresh()
+      window.location.reload()
     } catch (err: any) {
       console.debug(err)
       toast.error(err?.message || "Failed to leave contest")
@@ -70,7 +74,8 @@ export default function ContestsPage() {
     try {
       await api.joinByCode(inviteCode)
       setInviteCode("")
-      router.refresh()
+      toast.success("Joined contest successfully!")
+      window.location.reload()
     } catch (err: any) {
       console.debug(err)
       toast.error(err?.message || "Failed to join with invitation code")
@@ -79,16 +84,20 @@ export default function ContestsPage() {
     }
   }
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "live":
-        return "text-green-500 bg-green-500/10"
-      case "upcoming":
-        return "text-blue-500 bg-blue-500/10"
-      case "ended":
-        return "text-gray-500 bg-gray-500/10"
-      default:
-        return ""
+  const getStatusDisplay = (status: string) => {
+    const s = status?.toUpperCase() || ""
+    if (s === "ACTIVE") return { text: "Live", classes: "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" }
+    if (s === "NOT_STARTED" || s === "UPCOMING") return { text: "Upcoming", classes: "text-blue-400 bg-blue-500/10 border border-blue-500/20" }
+    if (s === "ENDED" || s === "PAST") return { text: "Ended", classes: "text-zinc-400 bg-zinc-500/10 border border-zinc-500/20" }
+    return { text: status, classes: "text-zinc-400 bg-zinc-500/10" }
+  }
+
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return "TBD"
+    try {
+      return format(parseISO(dateStr), "MMM d, yyyy • h:mm a")
+    } catch (e) {
+      return dateStr
     }
   }
 
@@ -100,140 +109,155 @@ export default function ContestsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-screen bg-[#0f0f12] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     )
   }
 
-  if (!isAuthenticated) {
-    return null
-  }
+  if (!isAuthenticated) return null
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-card to-background">
+    <main className="min-h-screen bg-[#0f0f12] text-foreground font-sans">
       <MainNav />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">Contests</h1>
-          <p className="text-muted-foreground">Compete with programmers worldwide and improve your skills</p>
-        </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
+        
+        {/* Header Section */}
+        <div className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight text-white">Contests</h1>
+            <p className="text-muted-foreground text-lg">Test your skills against programmers worldwide in real-time competitions.</p>
+          </motion.div>
 
-        {/* Tabs */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex gap-2 border-b border-border">
-            {["All", "Upcoming", "Live", "Past"].map((tab) => (
-              <button
-                key={tab}
-                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                  tab === "All"
-                    ? "text-primary border-primary"
-                    : "text-muted-foreground border-transparent hover:text-foreground"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          {/* Action Ribbon */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-b border-white/5 pb-2">
+            <div className="flex gap-2">
+              {["All", "Upcoming", "Live", "Past"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 font-semibold text-sm rounded-t-lg transition-all border-b-2 -mb-[3px] ${
+                    tab === activeTab
+                      ? "text-primary border-primary bg-white/5"
+                      : "text-muted-foreground border-transparent hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Join with invite code"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              className="px-3 py-2 bg-card border border-border rounded-md text-foreground placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <Button onClick={handleJoinByCode} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={joinLoading}>
-              {joinLoading ? "Joining..." : "Join"}
-            </Button>
-          </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Join with invite code..."
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-full sm:w-64 transition-all"
+              />
+              <Button onClick={handleJoinByCode} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 shadow-[0_0_15px_rgba(var(--primary),0.3)] transition-all" disabled={joinLoading || !inviteCode}>
+                {joinLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Join"}
+              </Button>
+            </div>
+          </motion.div>
         </div>
 
         {/* Contests Grid */}
         <div className="space-y-4">
           {loadingContests ? (
-            <div className="text-center py-8">Loading contests...</div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">Failed to load contests</div>
-          ) : (contests || []).map((contest: any) => (
-            <div
-              key={contest.id}
-              className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-colors"
-            >
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-foreground">{contest.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{contest.description}</p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${statusColor(
-                        contest.status,
-                      )}`}
-                    >
-                      {contest.status === "live" ? "Live" : contest.status === "upcoming" ? "Upcoming" : "Ended"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Start:</span>
-                      <span>{contest.start_time || contest.startTime}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Duration:</span>
-                      <span>{contest.duration || contest.duration_minutes || 0} minutes</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Problems:</span>
-                      <span>{contest.problems_count || contest.problems || (contest.contest_problems?.length ?? 0)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Participants:</span>
-                      <span>{(contest.participants || contest.registered_count || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 w-full lg:w-auto">
-                  <Link href={`/contests/${contest.slug || contest.id}`} className="w-full">
-                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                      {contest.is_user_registered || contest.registered
-                        ? contest.status === "live"
-                          ? "View"
-                          : "View Details"
-                        : contest.status === "live"
-                          ? "Join"
-                          : "Register"}
-                    </Button>
-                  </Link>
-                  {(contest.is_user_registered || contest.registered) && (
-                    <Button
-                      onClick={() => handleUnregister(contest.id)}
-                      variant="outline"
-                      className="w-full border-border text-muted-foreground hover:text-foreground bg-transparent"
-                      disabled={refreshing}
-                    >
-                      {refreshing ? "Leaving..." : "Leave"}
-                    </Button>
-                  )}
-                  {!(contest.is_user_registered || contest.registered) && (
-                    <Button
-                      onClick={() => handleRegister(contest.id)}
-                      className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
-                      disabled={refreshing}
-                    >
-                      {refreshing ? "Working..." : contest.status === "live" ? "Join" : "Register"}
-                    </Button>
-                  )}
-                </div>
-              </div>
+            <div className="flex flex-col items-center justify-center py-20 opacity-50">
+               <Loader2 className="w-8 h-8 animate-spin mb-4" />
+               <p>Fetching contests...</p>
             </div>
-          ))}
+          ) : error ? (
+            <div className="text-center py-20 text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+               <p className="font-semibold">Failed to load contests.</p>
+               <p className="text-sm opacity-70 mt-1">Please try again later.</p>
+            </div>
+          ) : (!contests || contests.length === 0) ? (
+            <div className="text-center py-20 border border-white/5 rounded-xl bg-white/[0.02]">
+               <Info className="w-8 h-8 text-muted-foreground mx-auto mb-4 opacity-50" />
+               <p className="font-semibold text-white/80">No {activeTab.toLowerCase()} contests found</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {contests.map((contest: any, idx: number) => {
+                const statusAttr = getStatusDisplay(contest.status)
+                const isRegistered = contest.is_registered
+                
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    key={contest.id}
+                    className="group bg-[#14141a] border border-white/5 rounded-xl p-6 hover:border-primary/40 transition-all hover:bg-white/[0.03]"
+                  >
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-xl font-bold text-white/90 group-hover:text-primary transition-colors">{contest.title}</h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase shadow-sm ${statusAttr.classes}`}>
+                            {statusAttr.text}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{contest.description}</p>
+                        
+                        <div className="flex flex-wrap items-center gap-6 pt-2 text-sm text-white/60">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-primary/70" />
+                            <span>{formatDateTime(contest.start_time)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-amber-500/70" />
+                            <span>{contest.duration} mins</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-emerald-500/70" />
+                            <span>{(contest.total_participants || 0).toLocaleString()} Registered</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-row md:flex-col gap-2 w-full md:w-40 shrink-0 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                        <Link href={`/contests/${contest.slug}`} className="w-full">
+                          <Button className="w-full gap-2 font-semibold bg-white/10 hover:bg-white/20 text-white" variant="secondary">
+                            {isRegistered || contest.status?.toUpperCase() === 'ENDED' 
+                               ? "View Details" 
+                               : "View Preview"}
+                          </Button>
+                        </Link>
+                        
+                        {contest.status?.toUpperCase() !== 'ENDED' && (
+                          isRegistered ? (
+                            <Button
+                              onClick={() => handleUnregister(contest.slug)}
+                              variant="outline"
+                              className="w-full border-rose-500/30 text-rose-400 hover:text-white hover:bg-rose-500/20 bg-transparent transition-colors"
+                              disabled={refreshing}
+                            >
+                              {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Leave Contest"}
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleRegister(contest.slug)}
+                              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-[0_0_15px_rgba(var(--primary),0.3)] transition-all"
+                              disabled={refreshing}
+                            >
+                              {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Register Now"}
+                            </Button>
+                          )
+                        )}
+                      </div>
+                      
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </main>
